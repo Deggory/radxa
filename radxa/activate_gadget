@@ -27,14 +27,21 @@ modprobe libcomposite
 mkdir -p "$GADGET_PATH"
 cd "$GADGET_PATH"
 
-if [[ -s UDC ]]; then
-  echo "ERROR: $GADGET_NAME is already active on $(cat UDC)." >&2
+current_udc=$(cat UDC)
+if [[ -n $current_udc ]]; then
+  echo "ERROR: $GADGET_NAME is already active on $current_udc." >&2
   exit 1
 fi
 
 printf 0x1d6b > idVendor
 printf 0x0104 > idProduct
-mkdir -p strings/0x409 configs/c.1/strings/0x409
+rm -f configs/c.1/acm.usb0
+rmdir functions/acm.usb0 2>/dev/null || true
+rmdir configs/c.1/strings/0x409 2>/dev/null || true
+rmdir configs/c.1 2>/dev/null || true
+mkdir -p strings/0x409
+mkdir configs/c.1
+mkdir configs/c.1/strings/0x409
 printf HYBRIDPILOT0001 > strings/0x409/serialnumber
 printf HybridPilot > strings/0x409/manufacturer
 printf Q8B-USB0-Diagnostic > strings/0x409/product
@@ -42,7 +49,7 @@ printf 250 > configs/c.1/MaxPower
 printf Diagnostic > configs/c.1/strings/0x409/configuration
 
 mkdir -p functions/acm.usb0
-ln -sfn ../../functions/acm.usb0 configs/c.1/acm.usb0
+ln -sfn functions/acm.usb0 configs/c.1/acm.usb0
 printf '%s' "$UDC_NAME" > UDC
 
 printf 'Gadget: %s\n' "$GADGET_NAME"
