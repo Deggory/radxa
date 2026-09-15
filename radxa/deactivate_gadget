@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Remove only the temporary HybridPilot diagnostic gadget from USB0.
+# USB0 then follows the role configured by the booted kernel/device-tree.
+# It does not change device-tree overlays or force host mode.
+
+if [[ ${EUID} -ne 0 ]]; then
+  exec sudo -- "$0" "$@"
+fi
+
+GADGET_PATH=/sys/kernel/config/usb_gadget/hybridpilot-diag
+
+if [[ ! -d "$GADGET_PATH" ]]; then
+  echo "No HybridPilot diagnostic gadget is active."
+  exit 0
+fi
+
+printf '' > "$GADGET_PATH/UDC"
+rm -f "$GADGET_PATH/configs/c.1/acm.usb0"
+rmdir "$GADGET_PATH/functions/acm.usb0" 2>/dev/null || true
+rmdir "$GADGET_PATH/configs/c.1/strings/0x409" 2>/dev/null || true
+rmdir "$GADGET_PATH/configs/c.1" 2>/dev/null || true
+rmdir "$GADGET_PATH/strings/0x409" 2>/dev/null || true
+rmdir "$GADGET_PATH"
+
+echo "HybridPilot diagnostic gadget removed."
+echo "USB0 now follows the booted kernel/device-tree configuration."

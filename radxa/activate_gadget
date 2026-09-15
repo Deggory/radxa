@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Create a temporary CDC ACM diagnostic gadget on USB0.
+# This does not modify the boot-time USB role or device-tree overlays.
+
+if [[ ${EUID} -ne 0 ]]; then
+  exec sudo -- "$0" "$@"
+fi
+
+GADGET_ROOT=/sys/kernel/config/usb_gadget
+GADGET_NAME=hybridpilot-diag
+GADGET_PATH="$GADGET_ROOT/$GADGET_NAME"
+UDC_NAME=a600000.usb
+
+if [[ ! -d /sys/kernel/config ]]; then
+  echo "ERROR: configfs is not mounted." >&2
+  exit 1
+fi
+
+if [[ ! -e "/sys/class/udc/$UDC_NAME" ]]; then
+  echo "ERROR: USB0 UDC $UDC_NAME is unavailable." >&2
+  exit 1
+fi
+
+modprobe libcomposite
+mkdir -p "$GADGET_PATH"
+cd "$GADGET_PATH"
+
+if [[ -s UDC ]]; then
+  echo "ERROR: $GADGET_NAME is already active on $(cat UDC)." >&2
+  exit 1
+fi
+
+printf 0x1d6b > idVendor
+printf 0x0104 > idProduct
+mkdir -p strings/0x409 configs/c.1/strings/0x409
+printf HYBRIDPILOT0001 > strings/0x409/serialnumber
+printf HybridPilot > strings/0x409/manufacturer
+printf Q8B-USB0-Diagnostic > strings/0x409/product
+printf 250 > configs/c.1/MaxPower
+printf Diagnostic > configs/c.1/strings/0x409/configuration
+
+mkdir -p functions/acm.usb0
+ln -sfn ../../functions/acm.usb0 configs/c.1/acm.usb0
+printf '%s' "$UDC_NAME" > UDC
+
+printf 'Gadget: %s\n' "$GADGET_NAME"
+printf 'UDC: %s\n' "$(cat UDC)"
+printf 'State: %s\n' "$(cat "/sys/class/udc/$UDC_NAME/state")"
+printf 'Speed: %s\n' "$(cat "/sys/class/udc/$UDC_NAME/current_speed")"
